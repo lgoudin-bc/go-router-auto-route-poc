@@ -5,6 +5,7 @@ import '../pages/detail_page.dart';
 import '../pages/home_page.dart';
 import '../pages/my_account_page.dart';
 import '../pages/poker_host_page.dart';
+import '../pages/risk_lab_page.dart';
 import 'cupertino_modal_route.dart';
 
 part 'app_router.gr.dart';
@@ -25,6 +26,7 @@ class AppRouter extends RootStackRouter {
             AutoRoute(path: 'home', page: HomeRoute.page, initial: true),
             AutoRoute(path: 'detail', page: DetailRoute.page),
             AutoRoute(path: 'poker', page: PokerHostRoute.page),
+            AutoRoute(path: 'risk-lab', page: RiskLabRoute.page),
           ],
         ),
         // Root-level modal: presented bottom-to-top over everything (incl. the

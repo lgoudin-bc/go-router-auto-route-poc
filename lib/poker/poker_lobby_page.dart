@@ -1,17 +1,20 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../router/app_router.dart';
+import '../state/navbar_state.dart';
 import '../widgets/router_banner.dart';
 import 'poker_router.dart';
 
 /// Lobby screen — the initial location of the embedded go_router.
-class PokerLobbyPage extends StatelessWidget {
+class PokerLobbyPage extends ConsumerWidget {
   const PokerLobbyPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     const tables = ['Alpha', 'Bravo', 'Charlie'];
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Poker lobby'),
@@ -33,14 +36,28 @@ class PokerLobbyPage extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: FilledButton.tonalIcon(
-              // Cross-router call: from a go_router screen, push a root-level
-              // auto_route modal. `context.router` resolves to auto_route here
-              // (its RouterScope propagates through the nested go_router), and
-              // `.root` presents the sheet over the whole shell.
-              onPressed: () => context.router.root.push(const MyAccountRoute()),
-              icon: const Icon(Icons.account_circle),
-              label: const Text('Open My Account (auto_route)'),
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonalIcon(
+                  // Cross-router call: push a root-level auto_route modal.
+                  onPressed: () =>
+                      context.router.root.push(const MyAccountRoute()),
+                  icon: const Icon(Icons.account_circle),
+                  label: const Text('Open My Account (auto_route)'),
+                ),
+                FilledButton.tonalIcon(
+                  // Risk 2: write the auto_route tab's label from the go_router
+                  // side. Reaches the navbar only when there's no shadow scope.
+                  onPressed: () => ref
+                      .read(pokerTabLabelProvider.notifier)
+                      .set('Hot Tables 🔥'),
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Rename tab from go_router'),
+                ),
+              ],
             ),
           ),
           Expanded(

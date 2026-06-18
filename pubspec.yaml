@@ -41,6 +41,9 @@ dependencies:
   # Sub-route routing for the embedded poker module — version pinned to flutter-poker.
   go_router: 15.1.3
 
+  # Shared state that drives the navbar — major pinned to flutter-front (3.x).
+  flutter_riverpod: ^3.2.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

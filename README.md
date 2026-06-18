@@ -85,6 +85,34 @@ Run the app and:
 Every screen shows a colored banner naming the router that rendered it
 (indigo = auto_route, teal = go_router), so the coexistence is visible at a glance.
 
+## Migration risks proven (Risk lab tab)
+
+The navbar is **Riverpod-driven** like flutter-front (the bar's labels and visibility
+come from providers — [`lib/state/navbar_state.dart`](lib/state/navbar_state.dart) —
+not from static route config). The **Risk lab** tab has one switch per migration risk:
+**OFF = risk reproduced, ON = fix applied**. Flip a switch, then watch the Poker tab /
+navbar. Each risk is also asserted in both states in
+[`test/widget_test.dart`](test/widget_test.dart).
+
+| # | Risk | Reproduced (OFF) | Mitigation (ON) |
+|---|------|------------------|-----------------|
+| 1 | **Double bottom-nav** | poker renders its own bar (like flutter-poker's `NavigationBarScreen`) → two stacked bars | poker's bar suppressed → single bar |
+| 2 | **ProviderScope shadowing** | a nested `ProviderScope` over the poker subtree shadows `pokerTabLabelProvider`; "Rename tab from go_router" never reaches the navbar | shared scope → the go_router rename updates the auto_route tab title |
+| 3 | **Bar visibility isn't automatic** | opening a go_router fullscreen table leaves the auto_route bar visible | a go_router listener drives `navBarVisibleProvider` → bar hides on the table, restores on pop |
+| 4 | **Sub-route awareness lost** | only "poker" is known; the go_router location is invisible to auto_route | the same listener bridges the real location into `pokerActiveSubRouteProvider` |
+| 5 | **Back-button ownership** | "Simulate Android system back" skips the go_router stack | the nested go_router takes back priority → system back pops its stack first |
+
+Key takeaways for the migration:
+- Cross-router control of the navbar works **only through shared Riverpod state**, never
+  through go_router's routing APIs — and only if poker and the shell share one
+  `ProviderScope` (risk 2).
+- Risks 3 & 4 are mitigated centrally by a single go_router listener in
+  [`lib/pages/poker_host_page.dart`](lib/pages/poker_host_page.dart) that bridges
+  navigation into providers. Provider writes are deferred (post-frame) because the
+  router notifies during build.
+- Risk 6 (package-name collisions, e.g. both repos ship a `base_router`) is a build-time
+  monorepo concern and isn't demonstrable in one running app — see the analysis, not the PoC.
+
 ## Run it
 
 ```sh
@@ -101,10 +129,9 @@ fvm flutter test       # smoke test exercises the full nested-router flow
 fvm flutter build web  # full app compiles with both routers
 ```
 
-The smoke test in [`test/widget_test.dart`](test/widget_test.dart) asserts the auto_route
-shell renders, switching to the Poker tab reveals a go_router screen, a go_router push
-opens a table while the auto_route tabs remain on screen, and a go_router pop returns to
-the lobby.
+The 12 tests in [`test/widget_test.dart`](test/widget_test.dart) cover the coexistence
+flow (nested go_router, the auto_route modal opened from go_router) plus each migration
+risk in both its broken and fixed state.
 
 ## Design doc
 

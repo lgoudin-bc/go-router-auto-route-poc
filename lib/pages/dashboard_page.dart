@@ -1,13 +1,15 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../router/app_router.dart';
+import '../state/navbar_state.dart';
 
-/// The app shell. auto_route's [AutoTabsScaffold] owns the bottom navigation.
-///
-/// Tab 0 (Home) is pure auto_route. Tab 1 (Poker) hosts a go_router-driven
-/// module via [PokerHostRoute] — mirroring flutter-poker becoming a bottom tab
-/// inside flutter-front.
+/// The app shell. auto_route's [AutoTabsScaffold] owns the bottom navigation,
+/// but — like flutter-front — the bar's CONTENT and VISIBILITY are driven by
+/// Riverpod providers ([tabConfigProvider], [navBarVisibleProvider]) rather than
+/// by static route config. That's what lets the go_router poker side influence
+/// the bar (label, visibility) through shared state.
 @RoutePage()
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -15,15 +17,26 @@ class DashboardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AutoTabsScaffold(
-      routes: const [HomeRoute(), PokerHostRoute()],
+      routes: const [HomeRoute(), PokerHostRoute(), RiskLabRoute()],
       bottomNavigationBuilder: (_, tabsRouter) {
-        return BottomNavigationBar(
-          currentIndex: tabsRouter.activeIndex,
-          onTap: tabsRouter.setActiveIndex,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-            BottomNavigationBarItem(icon: Icon(Icons.casino), label: 'Poker'),
-          ],
+        return Consumer(
+          builder: (context, ref, _) {
+            // Risk 3: a poker page can hide the whole bar via this provider.
+            if (!ref.watch(navBarVisibleProvider)) return const SizedBox.shrink();
+            final tabs = ref.watch(tabConfigProvider);
+            return BottomNavigationBar(
+              type: BottomNavigationBarType.fixed,
+              currentIndex: tabsRouter.activeIndex,
+              onTap: tabsRouter.setActiveIndex,
+              items: [
+                for (final tab in tabs)
+                  BottomNavigationBarItem(
+                    icon: Icon(tab.icon),
+                    label: tab.label,
+                  ),
+              ],
+            );
+          },
         );
       },
     );

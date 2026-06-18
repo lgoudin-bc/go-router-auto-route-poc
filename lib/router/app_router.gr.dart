@@ -89,3 +89,19 @@ class PokerHostRoute extends PageRouteInfo<void> {
     },
   );
 }
+
+/// generated route for
+/// [RiskLabPage]
+class RiskLabRoute extends PageRouteInfo<void> {
+  const RiskLabRoute({List<PageRouteInfo>? children})
+    : super(RiskLabRoute.name, initialChildren: children);
+
+  static const String name = 'RiskLabRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const RiskLabPage();
+    },
+  );
+}
