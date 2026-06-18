@@ -59,6 +59,22 @@ class HomeRoute extends PageRouteInfo<void> {
 }
 
 /// generated route for
+/// [MyAccountPage]
+class MyAccountRoute extends PageRouteInfo<void> {
+  const MyAccountRoute({List<PageRouteInfo>? children})
+    : super(MyAccountRoute.name, initialChildren: children);
+
+  static const String name = 'MyAccountRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const MyAccountPage();
+    },
+  );
+}
+
+/// generated route for
 /// [PokerHostPage]
 class PokerHostRoute extends PageRouteInfo<void> {
   const PokerHostRoute({List<PageRouteInfo>? children})

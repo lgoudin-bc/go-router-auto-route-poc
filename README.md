@@ -36,6 +36,9 @@ MaterialApp.router
                                       └── PokerLobbyPage ──push──▶ PokerTablePage
                                           (go_router stack, typed routes via
                                            go_router_builder)
+    └── MyAccountRoute (root-level CupertinoModalRoute)  ← presented bottom-to-top
+            ▲                                              over EVERYTHING, and
+            └─── pushed from the go_router lobby ──────────  triggered from go_router
 ```
 
 The boundary lives in [`lib/pages/poker_host_page.dart`](lib/pages/poker_host_page.dart):
@@ -48,6 +51,26 @@ go_router routes are declared with `go_router_builder` typed routes in
 [`lib/poker/poker_router.dart`](lib/poker/poker_router.dart), exactly as flutter-poker
 does.
 
+### Reverse direction: a go_router screen presenting an auto_route page
+
+The go_router lobby has an **"Open My Account (auto_route)"** button that presents
+[`MyAccountPage`](lib/pages/my_account_page.dart) — a page that belongs to the
+**auto_route** tree — as a root-level, bottom-to-top sheet over the entire shell
+(including the bottom tabs):
+
+```dart
+// inside a go_router screen:
+context.router.root.push(const MyAccountRoute());
+```
+
+This works because auto_route's `RouterScope` `InheritedWidget` propagates down through
+the nested go_router's `Navigator`, so `context.router` inside a go_router page still
+resolves to the auto_route controller; `.root` pushes onto the root stack.
+[`MyAccountRoute`](lib/router/app_router.dart) is registered at the root as a
+`CupertinoModalRoute` ([`lib/router/cupertino_modal_route.dart`](lib/router/cupertino_modal_route.dart)),
+a copy of flutter-front's bottom-to-top modal pattern (`fullscreenDialog: true` +
+`CupertinoSheetRoute`).
+
 ## What proves the point
 
 Run the app and:
@@ -56,6 +79,8 @@ Run the app and:
 2. **Home → "Push auto_route Detail" → Pop** — an **auto_route** stack push/pop.
 3. **Poker tab → tap a table → "Pop (go_router)"** — a **go_router** stack push/pop,
    while the auto_route bottom tabs stay visible the whole time.
+4. **Poker tab → "Open My Account (auto_route)"** — a **go_router** screen presents an
+   **auto_route** page as a bottom-to-top sheet over the whole shell, then closes.
 
 Every screen shows a colored banner naming the router that rendered it
 (indigo = auto_route, teal = go_router), so the coexistence is visible at a glance.

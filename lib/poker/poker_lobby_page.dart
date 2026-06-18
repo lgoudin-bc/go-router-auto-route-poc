@@ -1,5 +1,7 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import '../router/app_router.dart';
 import '../widgets/router_banner.dart';
 import 'poker_router.dart';
 
@@ -27,6 +29,18 @@ class PokerLobbyPage extends StatelessWidget {
               'This screen and the navigation below are driven by go_router, '
               'nested inside the auto_route Poker tab.',
               textAlign: TextAlign.center,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: FilledButton.tonalIcon(
+              // Cross-router call: from a go_router screen, push a root-level
+              // auto_route modal. `context.router` resolves to auto_route here
+              // (its RouterScope propagates through the nested go_router), and
+              // `.root` presents the sheet over the whole shell.
+              onPressed: () => context.router.root.push(const MyAccountRoute()),
+              icon: const Icon(Icons.account_circle),
+              label: const Text('Open My Account (auto_route)'),
             ),
           ),
           Expanded(

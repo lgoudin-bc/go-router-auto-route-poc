@@ -38,5 +38,20 @@ void main() {
     await tester.tap(find.text('Pop (go_router)'));
     await tester.pumpAndSettle();
     expect(find.text('Poker lobby'), findsOneWidget);
+
+    // Cross-router: from the go_router lobby, present a root-level auto_route
+    // modal over the whole shell.
+    await tester.tap(find.text('Open My Account (auto_route)'));
+    await tester.pumpAndSettle();
+    expect(find.text('My account'), findsOneWidget);
+    expect(
+      find.text('auto_route page — presented from go_router'),
+      findsOneWidget,
+    );
+
+    // Close the auto_route modal; we are back on the go_router lobby.
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    expect(find.text('Poker lobby'), findsOneWidget);
   });
 }
