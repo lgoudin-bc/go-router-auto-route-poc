@@ -29,8 +29,9 @@ Poker tab:
 ```
 MaterialApp.router
 └── AppRouter (auto_route)                ← top-level routing
-    └── DashboardPage / AutoTabsScaffold  ← bottom navigation (auto_route)
+    └── DashboardPage / AutoTabsRouter    ← shell: AppHeader (top) + bottom bar
         ├── Home tab        → HomePage ──push──▶ DetailPage     (auto_route stack)
+        ├── Risk lab tab    → RiskLabPage                       (toggles, below)
         └── Poker tab       → PokerHostPage                     ← THE BOUNDARY
                                   └── Router(widget) wired to a GoRouter
                                       └── PokerLobbyPage ──push──▶ PokerTablePage
@@ -40,6 +41,11 @@ MaterialApp.router
             ▲                                              over EVERYTHING, and
             └─── pushed from the go_router lobby ──────────  triggered from go_router
 ```
+
+The shell simulates flutter-front's **universe switcher**: Home + Risk lab are the
+"Sport" universe (full bottom bar); tapping **Poker** enters the Poker universe, where
+the bottom bar collapses to a single floating **"Back to Sports"** button (bottom-right)
+— exactly as the real app does via `MultiZoneTabBar` + `currentUniverseProvider`.
 
 The boundary lives in [`lib/pages/poker_host_page.dart`](lib/pages/poker_host_page.dart):
 an auto_route page renders a standalone `GoRouter` through a raw `Router` widget
@@ -75,35 +81,41 @@ a copy of flutter-front's bottom-to-top modal pattern (`fullscreenDialog: true` 
 
 Run the app and:
 
-1. **Switch bottom tabs** (Home ↔ Poker) — driven by **auto_route**.
+1. **Switch universes** (Sport bar ↔ Poker floating button) — driven by **auto_route**.
 2. **Home → "Push auto_route Detail" → Pop** — an **auto_route** stack push/pop.
-3. **Poker tab → tap a table → "Pop (go_router)"** — a **go_router** stack push/pop,
-   while the auto_route bottom tabs stay visible the whole time.
-4. **Poker tab → "Open My Account (auto_route)"** — a **go_router** screen presents an
+3. **Poker → tap a table → "Pop (go_router)"** — a **go_router** stack push/pop.
+4. **Poker lobby → "Open My Account (auto_route)"** — a **go_router** screen presents an
    **auto_route** page as a bottom-to-top sheet over the whole shell, then closes.
 
-Every screen shows a colored banner naming the router that rendered it
-(indigo = auto_route, teal = go_router), so the coexistence is visible at a glance.
+Each screen shows a colored banner naming the router that rendered it
+(indigo = auto_route, teal = go_router).
+
+## "Navigation bar" = the header
+
+In flutter-poker, `NavigationBarScreen` is the **top header** (back button + logo +
+wallet). flutter-front's equivalent is **`HeaderWidget`** (provider-driven, per-route via
+a `HeaderObserver`). The PoC models both: a shell **`AppHeader`**
+([`lib/widgets/app_header.dart`](lib/widgets/app_header.dart)) and poker's own
+**`PokerHeader`** ([`lib/widgets/poker_header.dart`](lib/widgets/poker_header.dart)).
 
 ## Migration risks proven (Risk lab tab)
 
-The navbar is **Riverpod-driven** like flutter-front (the bar's labels and visibility
-come from providers — [`lib/state/navbar_state.dart`](lib/state/navbar_state.dart) —
-not from static route config). The **Risk lab** tab has one switch per migration risk:
-**OFF = risk reproduced, ON = fix applied**. Flip a switch, then watch the Poker tab /
-navbar. Each risk is also asserted in both states in
-[`test/widget_test.dart`](test/widget_test.dart).
+The header is **Riverpod-driven** like flutter-front (title + visibility from providers in
+[`lib/state/header_state.dart`](lib/state/header_state.dart), not static route config).
+The **Risk lab** tab has one switch per migration risk: **OFF = risk reproduced, ON = fix
+applied**. Flip a switch, then watch the Poker tab. Each risk is asserted in both states
+in [`test/widget_test.dart`](test/widget_test.dart).
 
 | # | Risk | Reproduced (OFF) | Mitigation (ON) |
 |---|------|------------------|-----------------|
-| 1 | **Double bottom-nav** | poker renders its own bar (like flutter-poker's `NavigationBarScreen`) → two stacked bars | poker's bar suppressed → single bar |
-| 2 | **ProviderScope shadowing** | a nested `ProviderScope` over the poker subtree shadows `pokerTabLabelProvider`; "Rename tab from go_router" never reaches the navbar | shared scope → the go_router rename updates the auto_route tab title |
-| 3 | **Bar visibility isn't automatic** | opening a go_router fullscreen table leaves the auto_route bar visible | a go_router listener drives `navBarVisibleProvider` → bar hides on the table, restores on pop |
+| 1 | **Double header** | poker renders its own header (flutter-poker's `NavigationBarScreen`) on top of the shell `AppHeader` → two stacked top bars | poker's header suppressed → a single header |
+| 2 | **ProviderScope shadowing** | a nested `ProviderScope` over the poker subtree shadows `appHeaderTitleProvider`; "Set header title from go_router" never reaches the shell header | shared scope → the go_router write updates the shell header title |
+| 3 | **Header visibility isn't automatic** | opening a go_router fullscreen table leaves the shell header visible | a go_router listener drives `appHeaderVisibleProvider` → header hides on the table, restores on pop |
 | 4 | **Sub-route awareness lost** | only "poker" is known; the go_router location is invisible to auto_route | the same listener bridges the real location into `pokerActiveSubRouteProvider` |
 | 5 | **Back-button ownership** | "Simulate Android system back" skips the go_router stack | the nested go_router takes back priority → system back pops its stack first |
 
 Key takeaways for the migration:
-- Cross-router control of the navbar works **only through shared Riverpod state**, never
+- Cross-router control of the header works **only through shared Riverpod state**, never
   through go_router's routing APIs — and only if poker and the shell share one
   `ProviderScope` (risk 2).
 - Risks 3 & 4 are mitigated centrally by a single go_router listener in
@@ -129,7 +141,7 @@ fvm flutter test       # smoke test exercises the full nested-router flow
 fvm flutter build web  # full app compiles with both routers
 ```
 
-The 12 tests in [`test/widget_test.dart`](test/widget_test.dart) cover the coexistence
+The 13 tests in [`test/widget_test.dart`](test/widget_test.dart) cover the coexistence
 flow (nested go_router, the auto_route modal opened from go_router) plus each migration
 risk in both its broken and fixed state.
 

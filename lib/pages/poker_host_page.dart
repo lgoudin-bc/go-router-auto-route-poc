@@ -6,17 +6,19 @@ import 'package:go_router/go_router.dart';
 
 import '../poker/poker_router.dart';
 import '../state/back_dispatcher.dart';
-import '../state/navbar_state.dart';
+import '../state/header_state.dart';
 import '../state/notifiers.dart';
 import '../state/risk_toggles.dart';
+import '../widgets/poker_header.dart';
 
 /// THE BOUNDARY.
 ///
 /// An auto_route page (the Poker tab) that hands navigation off to a nested
-/// [GoRouter] via a raw [Router] widget. It also stages three migration risks
-/// whose mitigations are toggled from the Risk lab tab:
-///   - Risk 1: poker's own bottom bar (double-nav)
+/// [GoRouter]. It also stages the migration risks whose mitigations are toggled
+/// from the Risk lab:
+///   - Risk 1: poker's own header (double header vs the shell's AppHeader)
 ///   - Risk 2: a shadowing ProviderScope around the poker subtree
+///   - Risk 3/4: a go_router listener bridging navigation into shared state
 ///   - Risk 5: whether the nested go_router takes back-button priority
 @RoutePage()
 class PokerHostPage extends ConsumerStatefulWidget {
@@ -33,9 +35,6 @@ class _PokerHostPageState extends ConsumerState<PokerHostPage> {
   @override
   void initState() {
     super.initState();
-    // The faithful mitigation for risks 3 & 4: a single go_router listener that
-    // bridges navigation events into shared Riverpod state. Runs on navigation
-    // (not during widget dispose), so it notifies the navbar reliably.
     _pokerRouter.routerDelegate.addListener(_syncFromGoRouter);
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (mounted) _syncFromGoRouter();
@@ -43,21 +42,21 @@ class _PokerHostPageState extends ConsumerState<PokerHostPage> {
   }
 
   void _syncFromGoRouter() {
-    // The routerDelegate notifies during build, so defer the provider writes to
-    // after the frame — modifying providers during build is not allowed.
+    // The routerDelegate notifies during build, so defer all reads/writes to
+    // after the frame — modifying providers or calling setState during build is
+    // not allowed.
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      // Use the last match's location: an imperative push() keeps cfg.uri at the
-      // base ('/'), but the pushed match carries the real location.
+      // An imperative push() keeps cfg.uri at '/'; the pushed match has the loc.
       final matches = _pokerRouter.routerDelegate.currentConfiguration.matches;
       final loc = matches.isEmpty ? '/' : matches.last.matchedLocation;
       final onTable = loc.startsWith('/table/');
 
-      // Risk 3: hide the bar on a fullscreen go_router route, but only if wired.
+      // Risk 3: hide the shell header on a fullscreen go_router route, if wired.
       final hide = ref.read(fixAutoHideProvider) && onTable;
-      ref.read(navBarVisibleProvider.notifier).set(!hide);
+      ref.read(appHeaderVisibleProvider.notifier).set(!hide);
 
-      // Risk 4: publish the real go_router location, but only if bridged.
+      // Risk 4: publish the real go_router location, if bridged.
       final pretty =
           loc == '/' ? 'poker / lobby' : 'poker / ${loc.substring(1)}';
       ref.read(pokerActiveSubRouteProvider.notifier).set(
@@ -65,13 +64,16 @@ class _PokerHostPageState extends ConsumerState<PokerHostPage> {
                 ? pretty
                 : '(not bridged — auto_route only sees "poker")',
           );
+
+      // Refresh so the poker header's back button reflects the new stack depth.
+      setState(() {});
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final fixBackPriority = ref.watch(fixBackPriorityProvider);
-    final fixDoubleBar = ref.watch(fixDoubleBarProvider);
+    final fixDoubleHeader = ref.watch(fixDoubleHeaderProvider);
     final fixShadowScope = ref.watch(fixShadowScopeProvider);
     // Re-sync when the risk 3/4 toggles flip while a route is already showing.
     ref.listen(fixAutoHideProvider, (_, _) => _syncFromGoRouter());
@@ -83,29 +85,32 @@ class _PokerHostPageState extends ConsumerState<PokerHostPage> {
     _backButtonDispatcher ??= rootDispatcher.createChildBackButtonDispatcher();
     if (fixBackPriority) _backButtonDispatcher?.takePriority();
 
-    Widget content = Router(
+    final router = Router(
       routerDelegate: _pokerRouter.routerDelegate,
       routeInformationParser: _pokerRouter.routeInformationParser,
       routeInformationProvider: _pokerRouter.routeInformationProvider,
       backButtonDispatcher: fixBackPriority ? _backButtonDispatcher : null,
     );
 
-    // Risk 1: when NOT fixed, poker renders its own bottom bar inside the tab,
-    // stacking a second bar above the auto_route one.
-    if (!fixDoubleBar) {
-      content = Scaffold(
-        body: content,
-        bottomNavigationBar: const _PokerOwnBar(),
-      );
-    }
+    // Risk 1: when NOT fixed, poker renders its OWN header in addition to the
+    // shell's AppHeader → two stacked top bars.
+    Widget content = Column(
+      children: [
+        if (!fixDoubleHeader)
+          PokerHeader(
+            onBack: _pokerRouter.canPop() ? () => _pokerRouter.pop() : null,
+          ),
+        Expanded(child: router),
+      ],
+    );
 
     // Risk 2: when NOT fixed, wrap the poker subtree in a ProviderScope that
-    // OVERRIDES the tab-label provider. Poker's "rename" writes then hit this
-    // local copy and never reach the navbar reading the root provider.
+    // OVERRIDES the header-title provider. Poker's "rename" writes then hit this
+    // local copy and never reach the shell AppHeader reading the root provider.
     if (!fixShadowScope) {
       content = ProviderScope(
         overrides: [
-          pokerTabLabelProvider.overrideWith(() => StringNotifier('Poker')),
+          appHeaderTitleProvider.overrideWith(() => StringNotifier('Betclic Sport')),
         ],
         child: content,
       );
@@ -119,45 +124,5 @@ class _PokerHostPageState extends ConsumerState<PokerHostPage> {
     _pokerRouter.routerDelegate.removeListener(_syncFromGoRouter);
     _pokerRouter.dispose();
     super.dispose();
-  }
-}
-
-/// A fake bottom bar standing in for flutter-poker's own NavigationBarScreen.
-class _PokerOwnBar extends StatelessWidget {
-  const _PokerOwnBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.teal.shade700,
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _PokerOwnBarItem(icon: Icons.list, label: "Poker's own: Lobby"),
-          _PokerOwnBarItem(icon: Icons.emoji_events, label: 'Tournaments'),
-          _PokerOwnBarItem(icon: Icons.person, label: 'Account'),
-        ],
-      ),
-    );
-  }
-}
-
-class _PokerOwnBarItem extends StatelessWidget {
-  const _PokerOwnBarItem({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: Colors.white, size: 18),
-        const SizedBox(height: 2),
-        Text(label, style: const TextStyle(color: Colors.white, fontSize: 10)),
-      ],
-    );
   }
 }

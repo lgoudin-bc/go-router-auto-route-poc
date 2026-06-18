@@ -2,7 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../state/navbar_state.dart';
+import '../state/header_state.dart';
 import '../state/risk_toggles.dart';
 import '../widgets/router_banner.dart';
 
@@ -40,26 +40,28 @@ class RiskLabPage extends ConsumerWidget {
           ),
           _RiskTile(
             n: 1,
-            title: 'Double bottom-nav',
-            off: "Poker renders its own bar → two bars stacked.",
-            on: "Poker's own bar suppressed → single bar.",
-            observe: 'Open the Poker tab and look at the bottom.',
-            provider: fixDoubleBarProvider,
+            title: 'Double header',
+            off: "Poker renders its own header (NavigationBarScreen) on top of "
+                'the shell AppHeader → two stacked top bars.',
+            on: "Poker's own header suppressed → single header.",
+            observe: 'Open the Poker tab and look at the top.',
+            provider: fixDoubleHeaderProvider,
           ),
           _RiskTile(
             n: 2,
             title: 'ProviderScope shadowing',
-            off: 'A nested scope shadows the label provider → rename is lost.',
-            on: 'Shared scope → rename reaches the navbar.',
-            observe: 'In Poker lobby tap "Rename tab from go_router", '
-                'watch this tab\'s label below.',
+            off: 'A nested scope shadows the header-title provider → the rename '
+                'is lost.',
+            on: 'Shared scope → the rename reaches the shell header.',
+            observe: 'In Poker lobby tap "Set header title from go_router", '
+                'watch the top AppHeader title.',
             provider: fixShadowScopeProvider,
           ),
           _RiskTile(
             n: 3,
-            title: 'Bar visibility not automatic',
-            off: 'Opening a go_router table leaves the bar visible.',
-            on: 'Poker wires the route → bar hides on the table, restores on pop.',
+            title: 'Header visibility not automatic',
+            off: 'Opening a go_router table leaves the shell header visible.',
+            on: 'Poker wires the route → header hides on the table, restores on pop.',
             observe: 'Open a table from the Poker lobby.',
             provider: fixAutoHideProvider,
           ),
