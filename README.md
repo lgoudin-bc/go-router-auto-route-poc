@@ -20,7 +20,9 @@ dependency conflict.
 
 A screen recording (iOS simulator) of the running app showing auto_route tab
 navigation, the auto_route stack push, and the nested go_router navigation inside the
-Poker tab: [`docs/media/poc-demo.mov`](docs/media/poc-demo.mov).
+Poker tab:
+
+<img height="800" alt="ezgif-6d385f421543ea8c" src="https://github.com/user-attachments/assets/b2b7d68e-6d93-42a5-9857-54e2eee2e797" />
 
 ## How it works
 
